@@ -18,7 +18,9 @@ class DeviceFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'name' => 'Thiết bị ' . fake()->word(),
+            'type' => fake()->randomElement(['Máy chiếu', 'Laptop', 'Micro', 'Bộ phát Wifi']),
+            'status' => fake()->randomElement(['available', 'borrowed', 'maintenance']),
         ];
     }
 }

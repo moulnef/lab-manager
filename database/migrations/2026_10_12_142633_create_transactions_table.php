@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('device_id')->constrained()->onDelete('cascade');
+            $table->timestamp('borrow_date')->nullable();
+            $table->timestamp('return_date')->nullable();
+            $table->string('status')->default('active'); // active: đang mượn, returned: đã trả
             $table->timestamps();
         });
     }

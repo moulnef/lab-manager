@@ -15,11 +15,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+      // Tạo 1 tài khoản Admin mẫu để Huy test đăng nhập
+        \App\Models\User::factory()->create([
+            'name' => 'Quản trị viên',
+            'email' => 'admin@gmail.com',
+            'role' => 'admin',
+            'password' => bcrypt('12345678'),
         ]);
+
+        // Tạo 5 tài khoản User thường
+        \App\Models\User::factory(5)->create();
+
+        // Tạo 30 thiết bị mẫu
+        \App\Models\Device::factory(30)->create();
     }
 }
