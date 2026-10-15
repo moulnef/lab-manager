@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('devices', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('type'); // Máy chiếu, Loa, Thiết bị đo...
+            $table->enum('status', ['available', 'borrowed', 'maintenance'])->default('available');
             $table->timestamps();
         });
     }
