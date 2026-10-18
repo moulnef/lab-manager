@@ -2,18 +2,21 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
+    use RefreshDatabase;
     /**
-     * A basic test example.
+     * Test trang chủ chuyển hướng đến trang danh sách thiết bị.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_redirects_to_devices(): void
     {
         $response = $this->get('/');
+        $response->assertRedirect('/devices');
 
-        $response->assertStatus(200);
+        $deviceResponse = $this->get('/devices');
+        $deviceResponse->assertStatus(200);
     }
 }
