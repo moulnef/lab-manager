@@ -1,13 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 use App\Http\Controllers\DeviceController;
-use App\Models\Device;
-
-Route::get('/', function () {
-    return view('welcome');
-});
+use App\Http\Controllers\DeviceCatalogController;
+use App\Http\Controllers\BorrowController;
 
 // Nhóm Route dành riêng cho Admin
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -17,13 +13,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // ===== Phần User (Việt) =====
-Route::get('/devices', function () {
-    return view('devices.index', ['devices' => Device::all()]);
-})->name('user.devices');
-
-Route::get('/borrow/create', function (Request $request) {
-    return view('borrow.create', [
-        'devices' => Device::all(),
-        'selectedId' => $request->query('device'),
-    ]);
-})->name('user.borrow.create');
+Route::get('/', [DeviceCatalogController::class, 'home'])->name('home');
+Route::get('/devices', [DeviceCatalogController::class, 'index'])->name('user.devices');
+Route::get('/devices/{device}', [DeviceCatalogController::class, 'show'])->name('user.devices.show');
+Route::post('/borrow', [BorrowController::class, 'store'])->name('user.borrow.store');

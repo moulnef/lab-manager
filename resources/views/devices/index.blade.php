@@ -5,92 +5,60 @@
 @section('content')
     <h1 class="h4 mb-3">Danh sách thiết bị</h1>
 
-    {{-- Tìm kiếm + lọc (Ngày 3 sẽ gắn JS vào) --}}
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-sm-8">
-            <input type="search" id="search" class="form-control" placeholder="Tìm theo tên thiết bị...">
+    <form id="filter-form" method="GET" action="{{ route('user.devices') }}" class="row g-2 mb-3">
+        <div class="col-12 col-md-5">
+            <input type="search" name="keyword" value="{{ request('keyword') }}" class="form-control" placeholder="Tìm theo tên thiết bị...">
         </div>
-        <div class="col-12 col-sm-4">
-            <select id="status-filter" class="form-select">
-                <option value="">Tất cả trạng thái</option>
-                <option value="available">Đang rảnh</option>
-                <option value="borrowed">Đang mượn</option>
-                <option value="maintenance">Bảo trì</option>
+        <div class="col-6 col-md-3">
+            <select name="category_id" class="form-select">
+                <option value="">Tất cả danh mục</option>
+                @foreach ($categories as $c)
+                    <option value="{{ $c->id }}" {{ (string) request('category_id') === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                @endforeach
             </select>
         </div>
-    </div>
+        <div class="col-6 col-md-3">
+            <select name="status" class="form-select">
+                <option value="">Mọi trạng thái</option>
+                <option value="available" {{ request('status') === 'available' ? 'selected' : '' }}>Đang rảnh</option>
+                <option value="borrowed" {{ request('status') === 'borrowed' ? 'selected' : '' }}>Đang mượn</option>
+                <option value="maintenance" {{ request('status') === 'maintenance' ? 'selected' : '' }}>Bảo trì</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-1 d-grid">
+            <button class="btn btn-primary" type="submit">Lọc</button>
+        </div>
+    </form>
 
-    <div class="row g-3" id="device-list">
-        @foreach ($devices as $d)
-            <x-device-card :id="$d['id']" :name="$d['name']" :type="$d['type']" :status="$d['status']" />
-        @endforeach
+    <div id="device-list">
+        @include('devices._list')
     </div>
 @endsection
 
 @push('scripts')
 <script>
-    // API của Loan: GET /api/devices (trả mảng JSON). Muốn dùng dữ liệu giả thì đổi lại '/devices.json'.
-    const API_URL = '/api/devices';
-
+    // Lọc nhanh bằng AJAX: không tải lại trang, URL vẫn giữ từ khóa để phân trang đúng
+    const form = document.getElementById('filter-form');
     const list = document.getElementById('device-list');
-    const searchInput = document.getElementById('search');
-    const statusSelect = document.getElementById('status-filter');
+    let timer;
 
-    // Phải giống markup của components/device-card.blade.php
-    function cardHtml(d) {
-        const available = d.status === 'available';
-        const badge = {
-            available: ['text-bg-success', 'Đang rảnh'],
-            borrowed: ['text-bg-secondary', 'Đang mượn'],
-            maintenance: ['text-bg-warning', 'Bảo trì'],
-        }[d.status] || ['text-bg-light', d.status];
-        return `
-        <div class="col-12 col-sm-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0">${d.name}</h5>
-                        <span class="badge ${badge[0]}">${badge[1]}</span>
-                    </div>
-                    <p class="card-text text-muted">${d.type}</p>
-                </div>
-                <div class="card-footer bg-white border-0 pb-3">
-                    <a href="/borrow/create?device=${d.id}" class="btn btn-primary w-100 ${available ? '' : 'disabled'}">Mượn máy</a>
-                </div>
-            </div>
-        </div>`;
-    }
-
-    async function loadDevices() {
-        const params = new URLSearchParams({
-            q: searchInput.value.trim(),
-            status: statusSelect.value,
-        });
+    async function refresh() {
+        const params = new URLSearchParams(new FormData(form));
+        Array.from(params.keys()).forEach(k => { if (!params.get(k)) params.delete(k); });
+        const url = form.action + (params.toString() ? '?' + params : '');
         try {
-            // File JSON tĩnh bỏ qua params; ta lọc phía client tạm thời.
-            const res = await fetch(`${API_URL}?${params}`);
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!res.ok) throw new Error(res.status);
-            let data = await res.json();
-            data = data.data ?? data;
-
-            const q = searchInput.value.trim().toLowerCase();
-            const s = statusSelect.value;
-            data = data.filter(d =>
-                d.name.toLowerCase().includes(q) && (!s || d.status === s));
-
-            list.innerHTML = data.length
-                ? data.map(cardHtml).join('')
-                : '<p class="text-muted">Không có thiết bị phù hợp.</p>';
+            list.innerHTML = await res.text();
+            history.replaceState(null, '', url);
         } catch (e) {
             list.innerHTML = '<p class="text-danger">Không tải được danh sách. Thử lại sau.</p>';
         }
     }
 
-    let timer;
-    searchInput.addEventListener('input', () => {
-        clearTimeout(timer);
-        timer = setTimeout(loadDevices, 300);
-    });
-    statusSelect.addEventListener('change', loadDevices);
+    form.addEventListener('submit', e => { e.preventDefault(); refresh(); });
+    form.elements['keyword'].addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 300); });
+    form.elements['category_id'].addEventListener('change', refresh);
+    form.elements['status'].addEventListener('change', refresh);
 </script>
 @endpush

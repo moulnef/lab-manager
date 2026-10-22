@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         \App\Models\User::factory(5)->create();
 
         // Tạo 30 thiết bị mẫu
-        \App\Models\Device::factory(30)->create();
+        \App\Models\Device::factory(30)->create();   
+        $this->call(\Database\Seeders\CategorySeeder::class);
     }
 }
