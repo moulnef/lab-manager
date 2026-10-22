@@ -23,6 +23,7 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('home') ? 'active' : '' }}" href="{{ route('home') }}">Trang chủ</a></li>
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('user.devices*') ? 'active' : '' }}" href="{{ route('user.devices') }}">Thiết bị</a></li>
+                    <li class="nav-item"><a class="nav-link {{ request()->routeIs('user.borrows*') ? 'active' : '' }}" href="{{ route('user.borrows') }}">Lịch sử mượn</a></li>
                 </ul>
             </div>
         </div>
