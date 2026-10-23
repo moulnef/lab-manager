@@ -17,3 +17,5 @@ Route::get('/', [DeviceCatalogController::class, 'home'])->name('home');
 Route::get('/devices', [DeviceCatalogController::class, 'index'])->name('user.devices');
 Route::get('/devices/{device}', [DeviceCatalogController::class, 'show'])->name('user.devices.show');
 Route::post('/borrow', [BorrowController::class, 'store'])->name('user.borrow.store');
+Route::get('/my-borrows', [BorrowController::class, 'index'])->name('user.borrows');
+Route::delete('/my-borrows/{transaction}', [BorrowController::class, 'cancel'])->name('user.borrows.cancel');
