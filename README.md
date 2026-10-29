@@ -85,7 +85,7 @@ DB_PASSWORD=          # MAMP mặc định: root
 ```bash
 php artisan migrate:fresh --seed
 ```
-Kết quả: 8 người dùng, 6 danh mục, 143 thiết bị (mỗi mẫu từ 2–4 thiết bị vật lý có ảnh đầy đủ), 15 phiếu mượn.
+Kết quả: 8 người dùng, 6 danh mục, 50 thiết bị (mỗi mẫu từ 2–4 thiết bị vật lý có ảnh đầy đủ), 15 phiếu mượn.
 
 > **Cách khác:** import file `database/database.sql` (đã có sẵn cấu trúc + dữ liệu) bằng HeidiSQL → *File › Run SQL file*, hoặc `mysql -u root -p < database/database.sql`.
 
