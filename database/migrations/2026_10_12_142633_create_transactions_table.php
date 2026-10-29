@@ -7,24 +7,30 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Bảng nghiệp vụ – Phiếu mượn thiết bị (transactions).
+     * Vòng đời: pending (chờ duyệt) → approved (đang mượn) → returned (đã trả)
+     *           pending → rejected (bị từ chối) | cancelled (người dùng hủy)
      */
     public function up(): void
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('device_id')->constrained()->onDelete('cascade');
-            $table->timestamp('borrow_date')->nullable();
-            $table->timestamp('return_date')->nullable();
-            $table->string('status')->default('active'); // active: đang mượn, returned: đã trả
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('device_id')->constrained()->cascadeOnDelete();
+            $table->date('borrow_date');                 // Ngày mượn dự kiến
+            $table->date('return_date');                 // Ngày trả dự kiến
+            $table->string('purpose', 500)->nullable();  // Mục đích sử dụng
+            $table->enum('status', ['pending', 'approved', 'returned', 'rejected', 'cancelled'])
+                ->default('pending');
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('returned_at')->nullable(); // Thời điểm trả thực tế
+            $table->string('admin_note', 255)->nullable();
             $table->timestamps();
+
+            $table->index('status');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('transactions');

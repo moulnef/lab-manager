@@ -8,15 +8,11 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     use RefreshDatabase;
-    /**
-     * Test trang chủ chuyển hướng đến trang danh sách thiết bị.
-     */
-    public function test_the_application_redirects_to_devices(): void
-    {
-        $response = $this->get('/');
-        $response->assertRedirect('/devices');
 
-        $deviceResponse = $this->get('/devices');
-        $deviceResponse->assertStatus(200);
+    /** Trang chủ và trang danh sách thiết bị hoạt động. */
+    public function test_trang_chu_va_danh_sach_thiet_bi_hoat_dong(): void
+    {
+        $this->get('/')->assertOk();
+        $this->get('/devices')->assertOk();
     }
 }

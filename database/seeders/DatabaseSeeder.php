@@ -2,31 +2,21 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * php artisan migrate:fresh --seed
+     * Thứ tự: Người dùng → Danh mục → Thiết bị → Phiếu mượn.
      */
     public function run(): void
     {
-      // Tạo 1 tài khoản Admin mẫu để Huy test đăng nhập
-        \App\Models\User::factory()->create([
-            'name' => 'Quản trị viên',
-            'email' => 'admin@gmail.com',
-            'role' => 'admin',
-            'password' => bcrypt('12345678'),
+        $this->call([
+            UserSeeder::class,        // 2 tài khoản chuẩn + 6 sinh viên mẫu
+            CategorySeeder::class,    // 6 danh mục
+            DeviceSeeder::class,      // 50 thiết bị
+            TransactionSeeder::class, // 15 phiếu mượn
         ]);
-
-        // Tạo 5 tài khoản User thường
-        \App\Models\User::factory(5)->create();
-
-        // Tạo 30 thiết bị mẫu
-        \App\Models\Device::factory(30)->create();
     }
 }

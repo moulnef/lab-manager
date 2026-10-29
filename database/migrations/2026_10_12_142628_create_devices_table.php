@@ -7,22 +7,29 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Bảng 2 – Thiết bị (devices).
+     * Quan hệ: thuộc về 1 danh mục (belongsTo), có nhiều phiếu mượn (hasMany).
+     * Có cột deleted_at để xóa mềm (SoftDeletes).
      */
     public function up(): void
     {
         Schema::create('devices', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('category_id')
+                ->constrained('categories')
+                ->restrictOnDelete();                    // Không cho xóa danh mục còn thiết bị
+            $table->string('code', 30)->unique();        // Mã thiết bị, vd: LAB-LT-001
             $table->string('name');
-            $table->string('type'); // Máy chiếu, Loa, Thiết bị đo...
+            $table->text('description')->nullable();
+            $table->string('image')->nullable();         // Đường dẫn ảnh trong storage/app/public
             $table->enum('status', ['available', 'borrowed', 'maintenance'])->default('available');
             $table->timestamps();
+            $table->softDeletes();                       // deleted_at
+
+            $table->index('status');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('devices');

@@ -3,94 +3,120 @@
 @section('title', 'Danh sách thiết bị')
 
 @section('content')
-    <h1 class="h4 mb-3">Danh sách thiết bị</h1>
-
-    {{-- Tìm kiếm + lọc (Ngày 3 sẽ gắn JS vào) --}}
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-sm-8">
-            <input type="search" id="search" class="form-control" placeholder="Tìm theo tên thiết bị...">
-        </div>
-        <div class="col-12 col-sm-4">
-            <select id="status-filter" class="form-select">
-                <option value="">Tất cả trạng thái</option>
-                <option value="available">Đang rảnh</option>
-                <option value="borrowed">Đang mượn</option>
-                <option value="maintenance">Bảo trì</option>
-            </select>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-3">
+        <div>
+            <h1 class="h4 fw-bold mb-1">Danh sách thiết bị</h1>
+            <p class="text-muted small mb-0">Gõ từ khóa hoặc chọn bộ lọc – kết quả cập nhật ngay không cần tải lại trang.</p>
         </div>
     </div>
 
-    <div class="row g-3" id="device-list">
-        @foreach ($devices as $d)
-            <x-device-card :id="$d['id']" :name="$d['name']" :type="$d['type']" :status="$d['status']" />
-        @endforeach
+    {{-- Form tìm kiếm: vẫn hoạt động khi tắt JavaScript (GET thông thường) --}}
+    <form id="filter-form" action="{{ route('devices.index') }}" method="GET" class="card card-body shadow-sm mb-4">
+        <div class="row g-2">
+            <div class="col-12 col-md-5">
+                <label for="keyword" class="visually-hidden">Từ khóa</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="search" id="keyword" name="keyword" value="{{ $filters['keyword'] ?? '' }}"
+                           class="form-control" placeholder="Tên hoặc mã thiết bị..." autocomplete="off">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="category_id" class="visually-hidden">Danh mục</label>
+                <select id="category_id" name="category_id" class="form-select">
+                    <option value="">Tất cả danh mục</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}" @selected(($filters['category_id'] ?? '') == $category->id)>{{ $category->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="status" class="visually-hidden">Trạng thái</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">Mọi trạng thái</option>
+                    @foreach (\App\Models\Device::STATUSES as $value => $label)
+                        <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-funnel me-1"></i>Lọc</button>
+                <a href="{{ route('devices.index') }}" class="btn btn-outline-secondary" title="Xóa bộ lọc" id="reset-filter"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </div>
+    </form>
+
+    <div id="device-results" aria-live="polite">
+        @include('devices._list')
     </div>
 @endsection
 
 @push('scripts')
 <script>
-    // API của Loan: GET /api/devices (trả mảng JSON). Muốn dùng dữ liệu giả thì đổi lại '/devices.json'.
-    const API_URL = '/api/devices';
+/**
+ * Lọc nhanh bằng AJAX (Fetch API):
+ *  - Gõ từ khóa (debounce 350ms) hoặc đổi bộ lọc → gọi lại /devices?... với header X-Requested-With
+ *  - Server trả về HTML của phần danh sách (devices/_list) → thay vào #device-results
+ *  - history.replaceState giữ URL ?keyword=...&category_id=... để F5 / chia sẻ link vẫn đúng
+ *  - Bấm link phân trang cũng được tải bằng AJAX và giữ nguyên bộ lọc
+ */
+(() => {
+    const form = document.getElementById('filter-form');
+    const results = document.getElementById('device-results');
+    let timer, controller;
 
-    const list = document.getElementById('device-list');
-    const searchInput = document.getElementById('search');
-    const statusSelect = document.getElementById('status-filter');
-
-    // Phải giống markup của components/device-card.blade.php
-    function cardHtml(d) {
-        const available = d.status === 'available';
-        const badge = {
-            available: ['text-bg-success', 'Đang rảnh'],
-            borrowed: ['text-bg-secondary', 'Đang mượn'],
-            maintenance: ['text-bg-warning', 'Bảo trì'],
-        }[d.status] || ['text-bg-light', d.status];
-        return `
-        <div class="col-12 col-sm-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0">${d.name}</h5>
-                        <span class="badge ${badge[0]}">${badge[1]}</span>
-                    </div>
-                    <p class="card-text text-muted">${d.type}</p>
-                </div>
-                <div class="card-footer bg-white border-0 pb-3">
-                    <a href="/borrow/create?device=${d.id}" class="btn btn-primary w-100 ${available ? '' : 'disabled'}">Mượn máy</a>
-                </div>
-            </div>
-        </div>`;
+    function buildUrl() {
+        const params = new URLSearchParams();
+        new FormData(form).forEach((value, key) => { if (String(value).trim() !== '') params.set(key, value); });
+        const qs = params.toString();
+        return form.action + (qs ? '?' + qs : '');
     }
 
-    async function loadDevices() {
-        const params = new URLSearchParams({
-            q: searchInput.value.trim(),
-            status: statusSelect.value,
-        });
+    async function load(url) {
+        controller?.abort();
+        controller = new AbortController();
+        results.classList.add('loading');
         try {
-            // File JSON tĩnh bỏ qua params; ta lọc phía client tạm thời.
-            const res = await fetch(`${API_URL}?${params}`);
+            const res = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+                signal: controller.signal,
+            });
             if (!res.ok) throw new Error(res.status);
-            let data = await res.json();
-            data = data.data ?? data;
-
-            const q = searchInput.value.trim().toLowerCase();
-            const s = statusSelect.value;
-            data = data.filter(d =>
-                d.name.toLowerCase().includes(q) && (!s || d.status === s));
-
-            list.innerHTML = data.length
-                ? data.map(cardHtml).join('')
-                : '<p class="text-muted">Không có thiết bị phù hợp.</p>';
-        } catch (e) {
-            list.innerHTML = '<p class="text-danger">Không tải được danh sách. Thử lại sau.</p>';
+            results.innerHTML = await res.text();
+            history.replaceState(null, '', url);
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                results.innerHTML = '<div class="alert alert-danger">Không tải được danh sách thiết bị. Vui lòng thử lại.</div>';
+            }
+        } finally {
+            results.classList.remove('loading');
         }
     }
 
-    let timer;
-    searchInput.addEventListener('input', () => {
+    form.keyword.addEventListener('input', () => {
         clearTimeout(timer);
-        timer = setTimeout(loadDevices, 300);
+        timer = setTimeout(() => load(buildUrl()), 350);
     });
-    statusSelect.addEventListener('change', loadDevices);
+    form.category_id.addEventListener('change', () => load(buildUrl()));
+    form.status.addEventListener('change', () => load(buildUrl()));
+    form.addEventListener('submit', (e) => { e.preventDefault(); load(buildUrl()); });
+
+    document.getElementById('reset-filter').addEventListener('click', (e) => {
+        e.preventDefault();
+        form.reset();
+        form.keyword.value = '';
+        form.category_id.value = '';
+        form.status.value = '';
+        load(form.action);
+    });
+
+    // Phân trang bằng AJAX (link vẫn chứa đủ ?keyword=...&page=...)
+    results.addEventListener('click', (e) => {
+        const link = e.target.closest('.pagination a');
+        if (!link) return;
+        e.preventDefault();
+        load(link.href).then(() => results.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    });
+})();
 </script>
 @endpush

@@ -5,27 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
+/**
+ * Xác thực người dùng bằng Laravel Auth (guard "web", session).
+ */
 class AuthController extends Controller
 {
-    /**
-     * Hiển thị form đăng nhập
-     */
     public function showLoginForm()
     {
-        if (Auth::check()) {
-            return Auth::user()->role === 'admin'
-                ? redirect()->route('admin.dashboard')
-                : redirect()->route('user.devices');
-        }
-
         return view('auth.login');
     }
 
-    /**
-     * Xử lý đăng nhập
-     */
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -37,82 +27,66 @@ class AuthController extends Controller
             'password.required' => 'Vui lòng nhập mật khẩu.',
         ]);
 
-        $remember = $request->boolean('remember');
-
-        if (Auth::attempt($credentials, $remember)) {
-            $request->session()->regenerate();
-
-            // Phân luồng điều hướng dựa theo role
-            if (Auth::user()->role === 'admin') {
-                return redirect()->intended(route('admin.dashboard'))
-                    ->with('success', 'Đăng nhập thành công với quyền Quản trị viên!');
-            }
-
-            return redirect()->intended(route('user.devices'))
-                ->with('success', 'Đăng nhập thành công! Chào mừng bạn quay lại.');
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            return back()
+                ->withErrors(['email' => 'Email hoặc mật khẩu không chính xác.'])
+                ->onlyInput('email');
         }
 
-        return back()->withErrors([
-            'email' => 'Email hoặc mật khẩu không chính xác.',
-        ])->onlyInput('email');
+        $request->session()->regenerate();
+
+        // Điều hướng theo vai trò
+        if (Auth::user()->isAdmin()) {
+            return redirect()->intended(route('admin.dashboard'))
+                ->with('success', 'Đăng nhập thành công với quyền Quản trị viên.');
+        }
+
+        return redirect()->intended(route('home'))
+            ->with('success', 'Đăng nhập thành công! Chào mừng '.Auth::user()->name.'.');
     }
 
-    /**
-     * Hiển thị form đăng ký
-     */
     public function showRegisterForm()
     {
-        if (Auth::check()) {
-            return redirect()->route('user.devices');
-        }
-
         return view('auth.register');
     }
 
-    /**
-     * Xử lý đăng ký tài khoản mới
-     */
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ], [
             'name.required' => 'Vui lòng nhập họ và tên.',
+            'name.min' => 'Họ và tên phải có ít nhất :min ký tự.',
             'email.required' => 'Vui lòng nhập địa chỉ email.',
             'email.email' => 'Email không hợp lệ.',
             'email.unique' => 'Email này đã được sử dụng.',
             'password.required' => 'Vui lòng nhập mật khẩu.',
-            'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+            'password.min' => 'Mật khẩu phải có ít nhất :min ký tự.',
             'password.confirmed' => 'Xác nhận mật khẩu không khớp.',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'user', // Mặc định role là user thường
+            'password' => $validated['password'], // tự động hash nhờ cast "hashed"
+            'role' => User::ROLE_USER,            // đăng ký mới luôn là User thường
         ]);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('user.devices')
-            ->with('success', 'Đăng ký tài khoản thành công! Bạn có thể mượn thiết bị ngay bây giờ.');
+        return redirect()->route('home')
+            ->with('success', 'Đăng ký tài khoản thành công! Bạn có thể gửi yêu cầu mượn thiết bị ngay.');
     }
 
-    /**
-     * Xử lý đăng xuất
-     */
     public function logout(Request $request)
     {
         Auth::logout();
-
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')
-            ->with('success', 'Bạn đã đăng xuất an toàn khỏi hệ thống.');
+        return redirect()->route('login')->with('success', 'Bạn đã đăng xuất khỏi hệ thống.');
     }
 }
